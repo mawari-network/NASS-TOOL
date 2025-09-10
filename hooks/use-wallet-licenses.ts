@@ -9,6 +9,7 @@ import {
   type Address,
 } from 'viem';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNetworkCheck } from './use-network-check';
 
 import {
   RPC_URL,
@@ -43,6 +44,7 @@ const TOKENS_PER_PAGE    = 1_000;
 /* ──────────────────────────────────────────────────────────────────── */
 export function useWalletLicenses() {
   const { address } = useAccount();
+  const { isConnected:isCorrectNetwork } = useNetworkCheck();
   
   const publicClient = useMemo(() => 
     createPublicClient({ transport: http(RPC_URL) }),
@@ -65,6 +67,11 @@ export function useWalletLicenses() {
   /*  Loader (wrapped in useCallback to keep a stable ref)            */
   /* ---------------------------------------------------------------- */
   const loadLicenses = useCallback(async (wallet: Address, page: number = 0) => {
+    if (!isCorrectNetwork) {
+      console.warn('Please connect to Mawari Testnet to load licenses');
+      return;
+    }
+
     setIsLoading(true);
     if (page === 0) {
       setLicenses([]);
@@ -120,13 +127,13 @@ export function useWalletLicenses() {
     } finally {
       setIsLoading(false);
     }
-  }, [publicClient]);
+  }, [publicClient, isCorrectNetwork]);
 
   /* ---------------------------------------------------------------- */
   /*  React effect — reload on wallet / client change                 */
   /* ---------------------------------------------------------------- */
   useEffect(() => {
-    if (!address || !publicClient) {
+    if (!address || !publicClient || !isCorrectNetwork) {
       setLicenses([]);
       setTotalBalance(0);
       setCurrentPage(0);
@@ -135,7 +142,7 @@ export function useWalletLicenses() {
       return;
     }
     loadLicenses(address as Address, 0);
-  }, [address, publicClient, loadLicenses]);
+  }, [address, publicClient, loadLicenses, isCorrectNetwork]);
 
   const loadMoreLicenses = useCallback(() => {
     if (!address || !hasMorePages || isLoading) return;
@@ -164,7 +171,9 @@ export function useWalletLicenses() {
         }),
       })) as readonly MulticallCall[];
 
+  
       /* simulate multicall (read-only) */
+      if (!publicClient) return [];
       const { result } = await publicClient.simulateContract({
         address      : MULTICALL_CONTRACT_ADDRESS as Address,
         abi          : MULTICALL_ABI,

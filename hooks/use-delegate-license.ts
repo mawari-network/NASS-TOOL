@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { useWalletClient, usePublicClient, useChainId, useSwitchChain, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useWalletClient, usePublicClient, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { getContract, encodeFunctionData } from 'viem';
 import { useAccount } from 'wagmi';
 import { mawariTestnet } from '@/config/chains';
 import {DELEGATION_ABI} from '@/config/contracts';
+import { useNetworkCheck } from './use-network-check';
 
-const DELEGATE_CONTRACT_ADDRESS = "0xebD54bff71c779291280A73dD489b9Be44A626A3";
+const DELEGATE_CONTRACT_ADDRESS = "0x623F0F0B867fdFF129385D2Fa891F7A777C6B797";
 
 
 
@@ -16,13 +17,12 @@ export function useDelegateLicense(selectedWalletAddress?: string) {
   const publicClient = usePublicClient();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>();
-  const chainId = useChainId();
-  const { switchChain } = useSwitchChain();
   const { data: hash, writeContract, isPending } = useWriteContract();
   const { data: receipt } = useWaitForTransactionReceipt({
     hash,
     query: { enabled: !!hash },
   });
+  const { isConnected: isCorrectNetwork } = useNetworkCheck();
 
   const offerDelegation = async (tokenId: string, delegateeAddress: string, commissionPercentage: number = 0, enable: boolean = true) => {
     if (!walletClient) {
@@ -30,12 +30,9 @@ export function useDelegateLicense(selectedWalletAddress?: string) {
       throw new Error('Wallet not connected');
     }
 
-    if (chainId !== mawariTestnet.id) {
-      try {
-        await switchChain({ chainId: mawariTestnet.id });
-      } catch (err) {
-        throw new Error('Please switch to Mawari Testnet network');
-      }
+    if (!isCorrectNetwork) {
+      setError('Please connect to Mawari Testnet');
+      throw new Error('Please connect to Mawari Testnet');
     }
 
     setIsLoading(true);
@@ -45,18 +42,18 @@ export function useDelegateLicense(selectedWalletAddress?: string) {
       // Simulate the offer delegation first
       if (publicClient) {
         try {
-          const contract = getContract({
+          await publicClient.simulateContract({
             address: DELEGATE_CONTRACT_ADDRESS as `0x${string}`,
             abi: DELEGATION_ABI,
-            client: publicClient,
+            functionName: 'offerDelegation',
+            args: [
+              delegateeAddress as `0x${string}`,
+              BigInt(tokenId),
+              commissionPercentage,
+              enable
+            ],
+            account: walletClient.account,
           });
-
-          await contract.simulate.offerDelegation([
-            delegateeAddress as `0x${string}`,
-            BigInt(tokenId),
-            commissionPercentage,
-            enable
-          ]);
         } catch (simError: any) {
           console.error('❌ Offer delegation simulation failed:', simError);
           throw simError;
@@ -101,12 +98,9 @@ export function useDelegateLicense(selectedWalletAddress?: string) {
       throw new Error('Wallet not connected');
     }
 
-    if (chainId !== mawariTestnet.id) {
-      try {
-        await switchChain({ chainId: mawariTestnet.id });
-      } catch (err) {
-        throw new Error('Please switch to Mawari Testnet network');
-      }
+    if (!isCorrectNetwork) {
+      setError('Please connect to Mawari Testnet');
+      throw new Error('Please connect to Mawari Testnet');
     }
 
     setIsLoading(true);
@@ -137,15 +131,23 @@ export function useDelegateLicense(selectedWalletAddress?: string) {
       });
 
       // Simulate the multicall first
-      try {
-        await contract.simulate.multicall([calls]);
-      } catch (simError: any) {
-        console.error('❌ Multicall simulation failed:', simError);
-        if (simError.message?.includes('Sender not authorized') || 
-            simError.cause?.message?.includes('Sender not authorized')) {
-          throw new Error('Multicall not supported for this contract. Please try individual offer delegation.');
+      if (publicClient) {
+        try {
+          await publicClient.simulateContract({
+            address: DELEGATE_CONTRACT_ADDRESS as `0x${string}`,
+            abi: DELEGATION_ABI,
+            functionName: 'multicall',
+            args: [calls],
+            account: walletClient.account,
+          });
+        } catch (simError: any) {
+          console.error('❌ Multicall simulation failed:', simError);
+          if (simError.message?.includes('Sender not authorized') || 
+              simError.cause?.message?.includes('Sender not authorized')) {
+            throw new Error('Multicall not supported for this contract. Please try individual offer delegation.');
+          }
+          throw simError;
         }
-        throw simError;
       }
 
       // Execute the multicall

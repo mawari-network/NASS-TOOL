@@ -77,28 +77,56 @@ export const MULTICALL_ABI = [
 
 export const DELEGATION_ABI = [
   {
-    inputs: [
-      { name: "to", type: "address" },
-      { name: "tokenId", type: "uint256" },
-      { name: "commissionPercentage", type: "uint8" },
-      { name: "enable", type: "bool" }
+    "type": "function",
+    "name": "offerDelegation",
+    "inputs": [
+      {
+        "name": "to",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "tokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "commissionPercentage",
+        "type": "uint8",
+        "internalType": "uint8"
+      },
+      {
+        "name": "enable",
+        "type": "bool",
+        "internalType": "bool"
+      }
     ],
-    name: "offerDelegation",
-    outputs: [
-      { name: "offerHash", type: "bytes32" }
+    "outputs": [
+      {
+        "name": "offerHash",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "function"
+    "stateMutability": "nonpayable"
   },
   {
-    inputs: [
-      { name: "data", type: "bytes[]" }
+    "type": "function",
+    "name": "multicall",
+    "inputs": [
+      {
+        "name": "data",
+        "type": "bytes[]",
+        "internalType": "bytes[]"
+      }
     ],
-    name: "multicall",
-    outputs: [
-      { name: "results", type: "bytes[]" }
+    "outputs": [
+      {
+        "name": "results",
+        "type": "bytes[]",
+        "internalType": "bytes[]"
+      }
     ],
-    stateMutability: "nonpayable",
-    type: "function"
-  }
+    "stateMutability": "nonpayable"
+  },
 ] as const;

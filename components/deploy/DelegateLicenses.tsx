@@ -60,7 +60,7 @@ export function DelegateLicenses({
 
     const licenses = Array.from(selectedLicenses);
     
-    // Always use multicall for optimal gas efficiency
+    // Use multicall for optimal gas efficiency
     try {
       const delegations = licenses.map(tokenId => ({
         tokenId,

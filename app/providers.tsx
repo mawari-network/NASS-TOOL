@@ -2,17 +2,21 @@
 
 import * as React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { WagmiProvider, createConfig, http } from 'wagmi';
-import { mawariTestnet } from '@/config/chains';
+import { WagmiProvider } from "wagmi";
+import { mawariTestnet, mawariMainnet } from '@/config/chains';
+import { IS_TESTNET } from '@/lib/constant';
+import { getDefaultConfig } from '@rainbow-me/rainbowkit';
 import { Toaster } from '@/components/ui/toaster';
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import '@rainbow-me/rainbowkit/styles.css';
 
-const config = createConfig({
-  chains: [mawariTestnet],
-  transports: {
-    [mawariTestnet.id]: http(),
-  },
+const config = getDefaultConfig({
+  chains: IS_TESTNET ? [mawariTestnet] : [mawariMainnet],
+  projectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "YOUR_PROJECT_ID_HERE",
+  appName: "NASS Tool",
+  appDescription: "NASS License Management Tool",
+  appUrl: "https://family.co",
+  appIcon: "https://family.co/logo.png",
 });
 
 const queryClient = new QueryClient();
