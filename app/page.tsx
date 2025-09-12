@@ -19,20 +19,6 @@ export default function Home() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [error, setError] = useState<string>('');
 
-  // Initialize database on app load
-  useEffect(() => {
-    async function initDb() {
-      try {
-        const response = await fetch('/api/init-db', { method: 'POST' });
-        if (!response.ok) {
-          throw new Error('Failed to initialize database');
-        }
-      } catch (err) {
-        console.error('Database initialization error:', err);
-      }
-    }
-    initDb();
-  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {

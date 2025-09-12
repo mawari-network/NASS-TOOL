@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { ensureDatabaseInitialized } from '@/lib/server-init';
 
 export async function PUT(
   request: Request,
   { params }: { params: { address: string } }
 ) {
   try {
+    await ensureDatabaseInitialized();
     const updates = await request.json();
     const { address } = params;
 

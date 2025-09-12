@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { ensureDatabaseInitialized } from '@/lib/server-init';
 import type { Wallet } from '@/types/wallet';
 
 export async function GET() {
   try {
+    await ensureDatabaseInitialized();
     const wallets = await query(
       'SELECT * FROM wallets ORDER BY created_at DESC'
     ) as Wallet[];
@@ -19,6 +21,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    await ensureDatabaseInitialized();
     const wallet = await request.json();
     
     // Validate wallet data
