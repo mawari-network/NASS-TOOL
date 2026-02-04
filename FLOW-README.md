@@ -175,7 +175,38 @@ The UI shows a table of **Active Stakes & Delegations** with:
 
 ---
 
-## Summary
+## Future Improvements — Gas Optimizations
+
+These improvements could reduce gas fees when users have many delegations or want to delegate across multiple tiers:
+
+### 1. Batch `undelegateAndWithdraw` via Multicall (Active Stakes)
+
+**Current behavior:** Each delegation in the Active Stakes table has its own **Undelegate** button. Clicking it sends one transaction per delegation.
+
+**Improvement:** When a user has **many active delegations** (e.g. multiple nodes, multiple tiers), add a **"Undelegate All"** or **"Batch Undelegate"** option that uses **multicall** to batch multiple `undelegateAndWithdraw(tier, nodeAddress, amount)` calls into a single transaction.
+
+**Benefit:** One transaction instead of many → lower total gas fees, fewer wallet confirmations.
+
+---
+
+### 2. Batch `depositAndDelegate` for Multiple Tiers via Multicall
+
+**Current behavior:** The user selects one tier, amount, and node per transaction. To delegate Gold, Silver, and Bronze to the same (or different) nodes, they must submit separate transactions.
+
+**Improvement:** Add support for **batch deposit & delegate** — e.g. delegate Tier 1 to Node A, Tier 2 to Node B, Tier 3 to Node A — all in one transaction using **multicall** to batch multiple `depositAndDelegate(tier, nodeAddress, amount)` calls.
+
+**Benefit:** One transaction for all tiers → lower gas fees, faster onboarding for users with licenses across multiple tiers.
+
+---
+
+### Summary of Multicall Benefits
+
+| Scenario | Current | With Multicall |
+|----------|---------|----------------|
+| Undelegate 5 delegations | 5 transactions | 1 transaction |
+| Delegate 3 tiers to nodes | 3 transactions | 1 transaction |
+| Gas savings | — | Fewer tx overhead, shared base gas |
+
 
 | Step | Action | Purpose |
 |------|--------|---------|
