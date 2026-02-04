@@ -1,15 +1,8 @@
 'use client';
 
-import * as React from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { WagmiProvider } from "wagmi";
-import { RainbowKitProvider } from "@rainbow-me/rainbowkit";
-import { Toaster } from "@/components/ui/toaster";
-import { wagmiConfig } from "@/config/config";
-
-import "@rainbow-me/rainbowkit/styles.css";
-
-const queryClient = new QueryClient();
+import * as React from 'react';
+import { Toaster } from '@/components/ui/toaster';
+import Web3Provider from '@/providers/Web3Provider';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = React.useState(false);
@@ -17,13 +10,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   React.useEffect(() => setMounted(true), []);
 
   return (
-    <WagmiProvider config={wagmiConfig}>
-      <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider>
-          {mounted && children}
-          <Toaster />
-        </RainbowKitProvider>
-      </QueryClientProvider>
-    </WagmiProvider>
+    <Web3Provider>
+      {mounted && children}
+      <Toaster />
+    </Web3Provider>
   );
 }

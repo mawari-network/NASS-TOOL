@@ -1,25 +1,25 @@
 import { Chain } from 'viem';
 
 export const mawariTestnet = {
-  id: 629274,
+  id: 576,
   name: 'Mawari Testnet',
   nativeCurrency: {
     decimals: 18,
-    name: 'MAWARI',
+    name: 'Mawari Test Token',
     symbol: 'MAWARI',
   },
   rpcUrls: {
-    public: { http: ['https://mawari-network-testnet.rpc.caldera.xyz/http'] },
-    default: { http: ['https://mawari-network-testnet.rpc.caldera.xyz/http'] },
+    public: { 
+      http: ['https://rpc.testnet.mawari.net/http'],
+      webSocket: ['wss://rpc.testnet.mawari.net/ws'],
+    },
+    default: { 
+      http: ['https://rpc.testnet.mawari.net/http'],
+      webSocket: ['wss://rpc.testnet.mawari.net/ws'],
+    },
   },
   blockExplorers: {
-    default: { name: 'Explorer', url: 'https://mawari-network-testnet.rpc.caldera.xyz' },
-  },
-  contracts: {
-    multicall3: {
-      address: '0x3F1BD1Abc350eD6313Ff7Eaab561DCAbbcc61071' as `0x${string}`,
-      blockCreated: 1,
-    },
+    default: { name: 'Explorer', url: 'https://explorer.testnet.mawari.net' },
   },
   testnet: true,
 } as const satisfies Chain;
