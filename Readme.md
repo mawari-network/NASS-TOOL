@@ -2,6 +2,10 @@
 
 A web application for deploying and managing Mawari nodes with wallet integration and license management.
 
+## User Flow
+
+**→ [Full User Flow Documentation (FLOW-README.md)](./FLOW-README.md)** — Connect wallet → Approve escrow → Deposit & delegate licenses.
+
 ## Features
 
 - Wallet connection and management (MetaMask integration)
