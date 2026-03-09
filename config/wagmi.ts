@@ -4,10 +4,19 @@ import { injected, coinbaseWallet } from 'wagmi/connectors';
 import { mawariTestnet, mawariMainnet } from '@/config/chains';
 import { IS_TESTNET } from '@/lib/constant';
 
-export const projectId = process.env.NEXT_PUBLIC_PROJECT_ID || process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || '';
+// WalletConnect/AppKit project id must be available client-side (NEXT_PUBLIC_*).
+export const projectId =
+  process.env.NEXT_PUBLIC_PROJECT_ID ||
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ||
+  process.env.NEXT_PUBLIC_WC_PROJECT_ID ||
+  '';
+
+export const hasProjectId = Boolean(projectId);
 
 if (!projectId) {
-  console.warn('NEXT_PUBLIC_PROJECT_ID or NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set. WalletConnect may not work.');
+  console.warn(
+    'WalletConnect projectId is not set. Set NEXT_PUBLIC_PROJECT_ID (or NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID / NEXT_PUBLIC_WC_PROJECT_ID). Connect Wallet will not work until then.'
+  );
 }
 
 export const metadata = {
@@ -18,7 +27,7 @@ export const metadata = {
 };
 
 const chains = IS_TESTNET ? [mawariTestnet] : [mawariMainnet];
-export const networks = chains as [AppKitNetwork, ...AppKitNetwork[]];
+export const networks = chains as unknown as [AppKitNetwork, ...AppKitNetwork[]];
 
 export const wagmiAdapter = new WagmiAdapter({
   networks,
