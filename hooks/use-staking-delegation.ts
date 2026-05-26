@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Address, type Hex } from 'viem';
+import { Address } from 'viem';
 import { usePublicClient, useWalletClient, useAccount } from 'wagmi';
 import { CONTRACT, DelegationABI } from '@/lib/constant';
 import { useNetworkCheck } from './use-network-check';
@@ -22,17 +22,6 @@ interface DelegationResult {
   fromEpoch?: number;
 }
 
-export interface DepositAndOfferDelegationParams {
-  to: Address;
-  tier: number;
-  amount: bigint;
-}
-
-export interface DepositAndOfferDelegationResult {
-  txHash: Hex;
-  offerHash: Hex;
-}
-
 // --- Hook ---
 
 export function useStakingDelegation() {
@@ -46,29 +35,24 @@ export function useStakingDelegation() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Optimized Cache Invalidation
-   * Invalidate any query related to the Delegation Contract to force a UI refresh.
-   */
-  const refetchDelegationData = useCallback(() => {
-    queryClient.invalidateQueries({
-      predicate: (query) => {
-        // Safe check: look for the contract address in the query key arguments
-        const queryKey = query.queryKey as Array<any>;
-        return queryKey.some(
-          (item) => 
-            typeof item === 'object' && 
-            item !== null && 
-            'address' in item && 
-            (item as any).address === CONTRACT.DELEGATION
-        );
-      },
-    });
-  }, [queryClient]);
+  const delegationAddrLower = (CONTRACT.DELEGATION as string).toLowerCase();
 
-  /**
-   * Undelegate and withdraw (single action: undelegate from node and withdraw licenses to wallet).
-   */
+  const refetchDelegationData = useCallback(() => {
+    function keyContainsAddress(keyPart: unknown): boolean {
+      if (keyPart === null || keyPart === undefined) return false;
+      if (typeof keyPart === 'string') return keyPart.toLowerCase() === delegationAddrLower;
+      if (typeof keyPart === 'object' && keyPart !== null && 'address' in (keyPart as object))
+        return String((keyPart as { address?: unknown }).address).toLowerCase() === delegationAddrLower;
+      if (Array.isArray(keyPart)) return keyPart.some(keyContainsAddress);
+      if (typeof keyPart === 'object' && keyPart !== null)
+        return Object.values(keyPart as object).some(keyContainsAddress);
+      return false;
+    }
+    const predicate = (query: { queryKey: readonly unknown[] }) => keyContainsAddress(query.queryKey);
+    queryClient.invalidateQueries({ predicate });
+    queryClient.refetchQueries({ predicate });
+  }, [queryClient, delegationAddrLower]);
+
   const handleUndelegateAndWithdraw = useCallback(async (params: BaseDelegationParams): Promise<DelegationResult> => {
     if (!isCorrectNetwork) throw new Error('Please connect to the correct network');
     if (!publicClient || !connectedAddress) throw new Error('Wallet not connected');
@@ -78,11 +62,12 @@ export function useStakingDelegation() {
     setError(null);
 
     try {
+      const amountArg = typeof params.amount === 'bigint' ? params.amount : BigInt(String(params.amount));
       const { request } = await publicClient.simulateContract({
         address: CONTRACT.DELEGATION as Address,
         abi: DelegationABI,
         functionName: 'undelegateAndWithdraw',
-        args: [BigInt(params.tier), params.nodeAddress, params.amount],
+        args: [BigInt(params.tier), params.nodeAddress, amountArg],
         account: connectedAddress,
       });
 
@@ -104,11 +89,9 @@ export function useStakingDelegation() {
     return handleUndelegateAndWithdraw(params);
   }, [handleUndelegateAndWithdraw]);
 
-  /**
-   * Create a delegation offer (deposit and offer to an address; they can accept later).
-   * Returns offerHash from DelegationOfferCreated event for UI to track pending offers.
-   */
-  const depositAndOfferDelegation = useCallback(async (params: DepositAndOfferDelegationParams): Promise<DepositAndOfferDelegationResult> => {
+  const batchUndelegateAndWithdraw = useCallback(async (
+    params: BaseDelegationParams[],
+  ): Promise<DelegationResult> => {
     if (!isCorrectNetwork) throw new Error('Please connect to the correct network');
     if (!publicClient || !connectedAddress) throw new Error('Wallet not connected');
     if (!walletClient) throw new Error('Wallet client not available');
@@ -117,93 +100,27 @@ export function useStakingDelegation() {
     setError(null);
 
     try {
-      const { request, result } = await publicClient.simulateContract({
-        address: CONTRACT.DELEGATION as Address,
-        abi: DelegationABI,
-        functionName: 'depositAndOfferDelegation',
-        args: [params.to, BigInt(params.tier), params.amount],
-        account: connectedAddress,
-      });
+      const contractParams = params.map((p) => ({
+        tier: BigInt(p.tier),
+        node: p.nodeAddress,
+        amount: typeof p.amount === 'bigint' ? p.amount : BigInt(String(p.amount)),
+      }));
 
-      const txHash = await walletClient.writeContract(request) as Hex;
-      await publicClient.waitForTransactionReceipt({ hash: txHash });
-
-      // `depositAndOfferDelegation` returns the offerHash; capture it from simulation result
-      const offerHash = result as Hex;
-      if (!offerHash) throw new Error('Could not read offer hash from simulation result');
-
-      refetchDelegationData();
-      return { txHash, offerHash };
-    } catch (err: any) {
-      const message = err.shortMessage || err.message || 'Deposit and offer delegation failed';
-      setError(message);
-      throw new Error(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isCorrectNetwork, publicClient, connectedAddress, walletClient, refetchDelegationData]);
-
-  /**
-   * Cancel an offer and withdraw back to the creator (creator only).
-   * This matches the contract's internal `_cancelOfferAndWithdraw` behavior:
-   * marks inactive, unlocks, withdraws, emits Cancelled, and deletes the offer.
-   */
-  const cancelOfferAndWithdraw = useCallback(async (offerHash: Hex): Promise<DelegationResult> => {
-    if (!isCorrectNetwork) throw new Error('Please connect to the correct network');
-    if (!publicClient || !connectedAddress) throw new Error('Wallet not connected');
-    if (!walletClient) throw new Error('Wallet client not available');
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
       const { request } = await publicClient.simulateContract({
         address: CONTRACT.DELEGATION as Address,
         abi: DelegationABI,
-        functionName: 'cancelOfferAndWithdraw',
-        args: [offerHash],
+        functionName: 'batchUndelegateAndWithdraw',
+        args: [contractParams],
         account: connectedAddress,
       });
 
-      const txHash = await walletClient.writeContract(request) as Address;
+      const txHash = await walletClient.writeContract(request);
       const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
       refetchDelegationData();
       return { txHash, receipt };
     } catch (err: any) {
-      const message = err.shortMessage || err.message || 'Cancel and withdraw failed';
-      setError(message);
-      throw new Error(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isCorrectNetwork, publicClient, connectedAddress, walletClient, refetchDelegationData]);
-
-  /**
-   * Accept a delegation offer (recipient only).
-   */
-  const acceptDelegationOffer = useCallback(async (offerHash: Hex): Promise<DelegationResult> => {
-    if (!isCorrectNetwork) throw new Error('Please connect to the correct network');
-    if (!publicClient || !connectedAddress) throw new Error('Wallet not connected');
-    if (!walletClient) throw new Error('Wallet client not available');
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const { request } = await publicClient.simulateContract({
-        address: CONTRACT.DELEGATION as Address,
-        abi: DelegationABI,
-        functionName: 'acceptDelegationOffer',
-        args: [offerHash],
-        account: connectedAddress,
-      });
-
-      const txHash = await walletClient.writeContract(request) as Address;
-      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-      refetchDelegationData();
-      return { txHash, receipt };
-    } catch (err: any) {
-      const message = err.shortMessage || err.message || 'Accept offer failed';
+      console.error('Error in batchUndelegateAndWithdraw:', err);
+      const message = err.shortMessage || err.message || 'Batch undelegate and withdraw failed';
       setError(message);
       throw new Error(message);
     } finally {
@@ -213,9 +130,7 @@ export function useStakingDelegation() {
 
   return {
     undelegateAndWithdraw,
-    depositAndOfferDelegation,
-    cancelOfferAndWithdraw,
-    acceptDelegationOffer,
+    batchUndelegateAndWithdraw,
     refetch: refetchDelegationData,
     isLoading,
     error,

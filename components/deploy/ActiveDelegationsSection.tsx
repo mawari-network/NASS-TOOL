@@ -147,12 +147,13 @@ function DelegationRow({
   const key = `${tier}-${node}`;
   const isUndelegating = undelegatingKey === key;
 
-  const amount =
+  const rawAmount =
     delegation && typeof delegation === 'object' && 'amount' in delegation
-      ? (delegation as { amount: bigint }).amount
+      ? (delegation as { amount: bigint | string }).amount
       : Array.isArray(delegation) && delegation[0] !== undefined
-        ? (delegation as [bigint])[0]
+        ? (delegation as [bigint | string])[0]
         : undefined;
+  const amount = rawAmount !== undefined && rawAmount !== null ? BigInt(String(rawAmount)) : undefined;
 
   const copyAddress = () => {
     navigator.clipboard.writeText(node);

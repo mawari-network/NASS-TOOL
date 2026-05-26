@@ -21,8 +21,9 @@ export function useDelegatedNodes({ staker, tier, enabled = true }: UseStakeInfo
     args: staker && tier !== undefined ? [staker, BigInt(tier)] : undefined,
     query: {
       enabled: enabled && Boolean(staker && tier !== undefined),
-      staleTime: 30_000,
+      staleTime: 15_000,
       gcTime: 300_000,
+      refetchInterval: 15_000,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
       retry: 2,
@@ -66,10 +67,11 @@ export function useNodeDelegation({
     query: {
       enabled: enabled && Boolean(
         staker && tier !== undefined && node && 
-        (epoch !== undefined || true) // getNodeDelegation doesn't need epoch
+        (epoch !== undefined || true)
       ),
-      staleTime: 30_000,
+      staleTime: 15_000,
       gcTime: 300_000,
+      refetchInterval: 15_000,
       refetchOnWindowFocus: true,
       refetchOnReconnect: true,
       retry: 2,

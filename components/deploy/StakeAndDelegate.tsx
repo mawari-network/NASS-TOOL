@@ -2,18 +2,15 @@
 
 import { useState, useMemo } from 'react';
 import { type Address, isAddress } from 'viem';
-import { useAccount, useWatchContractEvent } from 'wagmi';
+import { useAccount } from 'wagmi';
 import type { Hex } from 'viem';
 import { useToast } from '@/hooks/use-toast';
 import { useStakingDelegation } from '@/hooks/use-staking-delegation';
-import { useEscrowApproval } from '@/hooks/use-escrow';
 import { useLicenseBalance } from '@/hooks/use-license-balance';
-import { usePendingOfferHashes } from '@/hooks/use-delegation-offers';
-import { CONTRACT, DelegationABI } from '@/lib/constant';
+import { useDelegationOffers } from '@/hooks/use-delegation-offers';
 import { ActiveDelegationsSection } from './ActiveDelegationsSection';
 import { PendingDelegationOffersSection } from './PendingDelegationOffersSection';
 import { OfferDelegationForm } from './OfferDelegationForm';
-import { ApproveEscrowCard } from './ApproveEscrowCard';
 
 export function StakeAndDelegate() {
   const { address } = useAccount();
@@ -24,109 +21,61 @@ export function StakeAndDelegate() {
   const [offerToAddress, setOfferToAddress] = useState('');
   const [offerAmount, setOfferAmount] = useState('');
   const [cancelingOfferHash, setCancelingOfferHash] = useState<Hex | null>(null);
+  const [isCreatingOffer, setIsCreatingOffer] = useState(false);
 
-  const { isApproved: isEscrowApproved, approve: approveEscrow, isTransactionPending: isApproving } =
-    useEscrowApproval(address as Address);
   const {
     undelegateAndWithdraw,
-    depositAndOfferDelegation,
-    cancelOfferAndWithdraw,
     refetch: refetchDelegations,
-    isLoading: isDepositing,
   } = useStakingDelegation();
-  const { getBalanceForTier, isLoading: isBalanceLoading, refetch: refetchLicenseBalance } = useLicenseBalance();
   const {
-    hashes: pendingOfferHashes,
-    addHash: addPendingOfferHash,
-    removeHash: removePendingOfferHash,
-    loaded: pendingHashesLoaded,
-  } = usePendingOfferHashes(address as Address);
+    createdOffers,
+    createOffer,
+    cancelOfferAndWithdraw,
+    refetch: refetchOffers,
+    isLoading: isOffersLoading,
+  } = useDelegationOffers();
+  const { getBalanceForTier, isLoading: isBalanceLoading, refetch: refetchLicenseBalance } = useLicenseBalance();
 
-  useWatchContractEvent({
-    address: CONTRACT.DELEGATION as Address,
-    abi: DelegationABI,
-    eventName: 'DelegationOfferAccepted',
-    poll: true,
-    pollingInterval: 2_000,
-    onLogs(logs) {
-      logs.forEach((log) => {
-        const hash = log.topics?.[1] as Hex | undefined;
-        if (hash) {
-          removePendingOfferHash(hash);
-          refetchDelegations();
-        }
-      });
-    },
-  });
-  useWatchContractEvent({
-    address: CONTRACT.DELEGATION as Address,
-    abi: DelegationABI,
-    eventName: 'DelegationOfferCancelled',
-    poll: true,
-    pollingInterval: 2_000,
-    onLogs(logs) {
-      logs.forEach((log) => {
-        const hash = log.topics?.[1] as Hex | undefined;
-        if (hash) {
-          removePendingOfferHash(hash);
-          refetchDelegations();
-        }
-      });
-    },
-  });
+  const createdOfferHashes = useMemo(
+    () => createdOffers.map((o) => o.offerHash as Hex),
+    [createdOffers],
+  );
 
   const isNotConnected = !address;
   const isValidOfferTo = useMemo(() => isAddress(offerToAddress), [offerToAddress]);
   const isValidOfferAmount = useMemo(() => Number(offerAmount) > 0, [offerAmount]);
 
-  const handleApprove = async () => {
-    try {
-      await approveEscrow();
-      toast({
-        title: 'Approved!',
-        description: 'You can now create delegation offers and delegate licenses.',
-      });
-    } catch (err: unknown) {
-      toast({
-        title: 'Error',
-        description: err instanceof Error ? err.message : 'Approval failed',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const handleCreateOffer = async () => {
     if (!address || !isValidOfferTo || !isValidOfferAmount) return;
+    setIsCreatingOffer(true);
     try {
-      const { offerHash } = await depositAndOfferDelegation({
-        to: offerToAddress as Address,
-        tier,
-        amount: BigInt(offerAmount),
-      });
-      addPendingOfferHash(offerHash);
+      await createOffer(offerToAddress as Address, tier, BigInt(offerAmount));
       setOfferToAddress('');
       setOfferAmount('');
       toast({ title: 'Offer created', description: 'Recipient can accept the delegation offer.' });
       refetchLicenseBalance();
+      refetchOffers();
     } catch (err: unknown) {
       toast({
         title: 'Error',
         description: err instanceof Error ? err.message : 'Create offer failed',
         variant: 'destructive',
       });
+    } finally {
+      setIsCreatingOffer(false);
     }
   };
 
   const handleCancelOffer = async (offerHash: Hex) => {
     setCancelingOfferHash(offerHash);
     try {
-      await cancelOfferAndWithdraw(offerHash);
-      removePendingOfferHash(offerHash);
+      await cancelOfferAndWithdraw(offerHash as `0x${string}`);
       toast({
         title: 'Offer cancelled',
         description: 'Offer cancelled and licenses withdrawn back to your wallet.',
       });
       refetchLicenseBalance();
+      refetchOffers();
     } catch (err: unknown) {
       toast({
         title: 'Error',
@@ -144,6 +93,7 @@ export function StakeAndDelegate() {
     try {
       await undelegateAndWithdraw({ tier: t, nodeAddress: node, amount: amt });
       toast({ title: 'Success!', description: 'Licenses undelegated and withdrawn.' });
+      refetchDelegations();
       refetchLicenseBalance();
     } catch (err: unknown) {
       toast({
@@ -176,31 +126,27 @@ export function StakeAndDelegate() {
 
       <PendingDelegationOffersSection
         myAddress={address as Address}
-        offerHashes={pendingOfferHashes}
-        onRemoveHash={removePendingOfferHash}
+        offerHashes={createdOfferHashes}
+        onRemoveHash={() => refetchOffers()}
         onCancelOffer={handleCancelOffer}
         cancelingOfferHash={cancelingOfferHash}
-        loaded={pendingHashesLoaded}
+        loaded={!isOffersLoading}
       />
 
-      {!isEscrowApproved && <ApproveEscrowCard onApprove={handleApprove} isApproving={isApproving} />}
-
-      {isEscrowApproved && (
-        <OfferDelegationForm
-          tier={tier}
-          setTier={setTier}
-          offerToAddress={offerToAddress}
-          setOfferToAddress={setOfferToAddress}
-          offerAmount={offerAmount}
-          setOfferAmount={setOfferAmount}
-          isValidOfferTo={isValidOfferTo}
-          isValidOfferAmount={isValidOfferAmount}
-          isDepositing={isDepositing}
-          getBalanceForTier={getBalanceForTier}
-          isBalanceLoading={isBalanceLoading}
-          onCreateOffer={handleCreateOffer}
-        />
-      )}
+      <OfferDelegationForm
+        tier={tier}
+        setTier={setTier}
+        offerToAddress={offerToAddress}
+        setOfferToAddress={setOfferToAddress}
+        offerAmount={offerAmount}
+        setOfferAmount={setOfferAmount}
+        isValidOfferTo={isValidOfferTo}
+        isValidOfferAmount={isValidOfferAmount}
+        isDepositing={isCreatingOffer}
+        getBalanceForTier={getBalanceForTier}
+        isBalanceLoading={isBalanceLoading}
+        onCreateOffer={handleCreateOffer}
+      />
     </div>
   );
 }
