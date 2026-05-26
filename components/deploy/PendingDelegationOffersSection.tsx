@@ -111,7 +111,6 @@ function PendingOfferRow({
   useEffect(() => {
     if (error && isOfferGoneError(error)) {
       onRemoveHash(offerHash);
-      return;
     }
     if (offerData && !offerData.isActive) onRemoveHash(offerHash);
   }, [offerData?.isActive, offerHash, onRemoveHash, offerData, error]);
