@@ -1,10 +1,8 @@
 import type { AppKitNetwork } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { injected, coinbaseWallet } from 'wagmi/connectors';
-import { mawariTestnet, mawariMainnet } from '@/config/chains';
-import { IS_TESTNET } from '@/lib/constant';
+import { mawariMainnet } from '@/config/mainnet';
 
-// WalletConnect/AppKit project id must be available client-side (NEXT_PUBLIC_*).
 export const projectId =
   process.env.NEXT_PUBLIC_PROJECT_ID ||
   process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ||
@@ -26,8 +24,7 @@ export const metadata = {
   icons: [],
 };
 
-const chains = IS_TESTNET ? [mawariTestnet] : [mawariMainnet];
-export const networks = chains as unknown as [AppKitNetwork, ...AppKitNetwork[]];
+export const networks = [mawariMainnet] as unknown as [AppKitNetwork, ...AppKitNetwork[]];
 
 export const wagmiAdapter = new WagmiAdapter({
   networks,

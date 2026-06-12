@@ -2,34 +2,28 @@
 
 import { useEffect } from 'react';
 import { useAccount, useChainId } from 'wagmi';
-import { mawariTestnet, mawariMainnet } from '@/config/chains';
-import { IS_TESTNET } from '@/lib/constant';
+import { mawariMainnet } from '@/config/mainnet';
 
 export function useNetworkCheck() {
-  const {isConnected} = useAccount();
+  const { isConnected } = useAccount();
   const chainId = useChainId();
 
   useEffect(() => {
     if (!isConnected) return;
 
-    const expectedChainId = IS_TESTNET ? mawariTestnet.id : mawariMainnet.id;
-    const expectedChainName = IS_TESTNET ? 'Mawari Testnet' : 'Mawari Mainnet';
-
-    if (chainId !== expectedChainId) {
-      alert(`Please connect to ${expectedChainName} (Chain ID: ${expectedChainId}) to use this application.`);
+    if (chainId !== mawariMainnet.id) {
+      alert(`Please connect to ${mawariMainnet.name} (Chain ID: ${mawariMainnet.id}) to use this application.`);
     }
   }, [isConnected, chainId]);
 
   const isCorrectNetwork = () => {
     if (!isConnected) return false;
-    const expectedChainId = IS_TESTNET ? mawariTestnet.id : mawariMainnet.id;
-    return chainId === expectedChainId;
+    return chainId === mawariMainnet.id;
   };
 
   return {
     isConnected: isCorrectNetwork(),
-    expectedChainId: IS_TESTNET ? mawariTestnet.id : mawariMainnet.id,
-    expectedChainName: IS_TESTNET ? 'Mawari Testnet' : 'Mawari Mainnet',
-  }
-
+    expectedChainId: mawariMainnet.id,
+    expectedChainName: mawariMainnet.name,
+  };
 }

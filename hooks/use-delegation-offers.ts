@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { type Address, type Hex, parseAbiItem, encodeAbiParameters, type PublicClient } from 'viem';
 import { useAccount, usePublicClient, useReadContract, useWalletClient } from 'wagmi';
 import { CONTRACT, DelegationABI, License1155ABI } from '@/lib/constant';
-import { mawariTestnet } from '@/config/chains';
+import { mawariMainnet } from '@/config/mainnet';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -230,7 +230,7 @@ async function fetchOffers(
 
 export function useDelegationOffers() {
   const { address } = useAccount();
-  const publicClient = usePublicClient({ chainId: mawariTestnet.id });
+  const publicClient = usePublicClient({ chainId: mawariMainnet.id });
   const { data: walletClient } = useWalletClient();
   const queryClient = useQueryClient();
 
@@ -270,7 +270,7 @@ export function useDelegationOffers() {
         functionName: 'safeTransferFrom',
         args: [address, CONTRACT.DELEGATION as Address, BigInt(tier), amount, data],
         account: address,
-        chain: mawariTestnet,
+        chain: mawariMainnet,
       });
 
       const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
