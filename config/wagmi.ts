@@ -1,7 +1,7 @@
 import type { AppKitNetwork } from '@reown/appkit/networks';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
 import { injected, coinbaseWallet } from 'wagmi/connectors';
-import { mawariMainnet } from '@/config/mainnet';
+import { mawariNetworks } from '@/config/chain';
 
 export const projectId =
   process.env.NEXT_PUBLIC_PROJECT_ID ||
@@ -24,7 +24,7 @@ export const metadata = {
   icons: [],
 };
 
-export const networks = [mawariMainnet] as unknown as [AppKitNetwork, ...AppKitNetwork[]];
+export const networks = mawariNetworks as unknown as [AppKitNetwork, ...AppKitNetwork[]];
 
 export const wagmiAdapter = new WagmiAdapter({
   networks,

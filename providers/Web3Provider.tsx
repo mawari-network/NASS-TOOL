@@ -12,6 +12,7 @@ import {
   metadata,
   featuredWalletIds,
 } from '@/config/wagmi';
+import { NetworkAutoSwitch } from '@/components/NetworkAutoSwitch';
 
 createAppKit({
   adapters: [wagmiAdapter],
@@ -47,6 +48,7 @@ function Web3Provider({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <WagmiProvider config={wagmiAdapter.wagmiConfig}>
+        <NetworkAutoSwitch />
         {children}
       </WagmiProvider>
     </QueryClientProvider>

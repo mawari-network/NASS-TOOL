@@ -1,29 +1,21 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useAccount, useChainId } from 'wagmi';
-import { mawariMainnet } from '@/config/mainnet';
+import { useAccount, useChainId, useSwitchChain } from 'wagmi';
+import { mawariChain } from '@/config/chain';
 
 export function useNetworkCheck() {
   const { isConnected } = useAccount();
   const chainId = useChainId();
+  const { isPending: isSwitching } = useSwitchChain();
 
-  useEffect(() => {
-    if (!isConnected) return;
-
-    if (chainId !== mawariMainnet.id) {
-      alert(`Please connect to ${mawariMainnet.name} (Chain ID: ${mawariMainnet.id}) to use this application.`);
-    }
-  }, [isConnected, chainId]);
-
-  const isCorrectNetwork = () => {
-    if (!isConnected) return false;
-    return chainId === mawariMainnet.id;
-  };
+  const isCorrectNetwork = isConnected && chainId === mawariChain.id;
 
   return {
-    isConnected: isCorrectNetwork(),
-    expectedChainId: mawariMainnet.id,
-    expectedChainName: mawariMainnet.name,
+    /** @deprecated Use isCorrectNetwork — kept for existing call sites */
+    isConnected: isCorrectNetwork,
+    isCorrectNetwork,
+    isSwitching,
+    expectedChainId: mawariChain.id,
+    expectedChainName: mawariChain.name,
   };
 }
