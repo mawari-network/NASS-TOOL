@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { type Address, isAddress } from 'viem';
+import { type Address } from 'viem';
 import { useAccount } from 'wagmi';
 import type { Hex } from 'viem';
 import { useToast } from '@/hooks/use-toast';
@@ -10,18 +10,14 @@ import { useLicenseBalance } from '@/hooks/use-license-balance';
 import { useDelegationOffers } from '@/hooks/use-delegation-offers';
 import { ActiveDelegationsSection } from './ActiveDelegationsSection';
 import { PendingDelegationOffersSection } from './PendingDelegationOffersSection';
-import { OfferDelegationForm } from './OfferDelegationForm';
+import { CreateOfferForm } from './CreateOfferForm';
 
 export function StakeAndDelegate() {
   const { address } = useAccount();
   const { toast } = useToast();
 
-  const [tier, setTier] = useState<1 | 2 | 3>(1);
   const [undelegatingKey, setUndelegatingKey] = useState<string | null>(null);
-  const [offerToAddress, setOfferToAddress] = useState('');
-  const [offerAmount, setOfferAmount] = useState('');
   const [cancelingOfferHash, setCancelingOfferHash] = useState<Hex | null>(null);
-  const [isCreatingOffer, setIsCreatingOffer] = useState(false);
 
   const {
     undelegateAndWithdraw,
@@ -29,12 +25,11 @@ export function StakeAndDelegate() {
   } = useStakingDelegation();
   const {
     createdOffers,
-    createOffer,
     cancelOfferAndWithdraw,
     refetch: refetchOffers,
     isLoading: isOffersLoading,
   } = useDelegationOffers();
-  const { getBalanceForTier, isLoading: isBalanceLoading, refetch: refetchLicenseBalance } = useLicenseBalance();
+  const { refetch: refetchLicenseBalance } = useLicenseBalance();
 
   const createdOfferHashes = useMemo(
     () => createdOffers.map((o) => o.offerHash as Hex),
@@ -42,29 +37,6 @@ export function StakeAndDelegate() {
   );
 
   const isNotConnected = !address;
-  const isValidOfferTo = useMemo(() => isAddress(offerToAddress), [offerToAddress]);
-  const isValidOfferAmount = useMemo(() => Number(offerAmount) > 0, [offerAmount]);
-
-  const handleCreateOffer = async () => {
-    if (!address || !isValidOfferTo || !isValidOfferAmount) return;
-    setIsCreatingOffer(true);
-    try {
-      await createOffer(offerToAddress as Address, tier, BigInt(offerAmount));
-      setOfferToAddress('');
-      setOfferAmount('');
-      toast({ title: 'Offer created', description: 'Recipient can accept the delegation offer.' });
-      refetchLicenseBalance();
-      refetchOffers();
-    } catch (err: unknown) {
-      toast({
-        title: 'Error',
-        description: err instanceof Error ? err.message : 'Create offer failed',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsCreatingOffer(false);
-    }
-  };
 
   const handleCancelOffer = async (offerHash: Hex) => {
     setCancelingOfferHash(offerHash);
@@ -133,20 +105,7 @@ export function StakeAndDelegate() {
         loaded={!isOffersLoading}
       />
 
-      <OfferDelegationForm
-        tier={tier}
-        setTier={setTier}
-        offerToAddress={offerToAddress}
-        setOfferToAddress={setOfferToAddress}
-        offerAmount={offerAmount}
-        setOfferAmount={setOfferAmount}
-        isValidOfferTo={isValidOfferTo}
-        isValidOfferAmount={isValidOfferAmount}
-        isDepositing={isCreatingOffer}
-        getBalanceForTier={getBalanceForTier}
-        isBalanceLoading={isBalanceLoading}
-        onCreateOffer={handleCreateOffer}
-      />
+      <CreateOfferForm />
     </div>
   );
 }
